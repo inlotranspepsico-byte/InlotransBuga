@@ -115,19 +115,22 @@
         <!-- Campo obligatorio para Netlify -->
         <input type="hidden" name="form-name" value="registro-emergent-cold">
         
-        <!-- Campos fantasma SIN [] → para registro básico en Netlify -->
+        <!-- Campos fantasma SIN [] -->
         <input type="hidden" name="parada_inicio">
         <input type="hidden" name="parada_fin">
         <input type="hidden" name="motivo">
         <input type="hidden" name="otro_motivo">
 
-        <!-- Bloque oculto CON [] → para permitir múltiples valores (¡clave!) -->
+        <!-- Bloque oculto CON [] (para compatibilidad) -->
         <div style="display:none;">
             <input type="text" name="parada_inicio[]">
             <input type="text" name="parada_fin[]">
             <input type="text" name="motivo[]">
             <input type="text" name="otro_motivo[]">
         </div>
+
+        <!-- Campo oculto para JSON -->
+        <input type="hidden" name="paradas_json" id="paradas_json">
 
         <label for="lugar">Lugar de operación:</label>
         <select name="lugar" id="lugar" required onchange="actualizarCampos(); guardarProgreso();">
@@ -196,7 +199,7 @@
                 if (el) data[id] = el.value;
             });
 
-            // Paradas
+            // Paradas: convertir a JSON
             data.paradas = [];
             document.querySelectorAll('.parada-group').forEach(grupo => {
                 data.paradas.push({
@@ -207,7 +210,11 @@
                 });
             });
 
+            // Guardar en localStorage
             localStorage.setItem('registroEmergentData', JSON.stringify(data));
+
+            // Actualizar el campo oculto con el JSON
+            document.getElementById('paradas_json').value = JSON.stringify(data.paradas);
         }
 
         function cargarProgreso() {
@@ -379,7 +386,13 @@
         });
 
         // Limpiar al enviar
-        document.getElementById('formulario-registro').onsubmit = function() {
+        document.getElementById('formulario-registro').onsubmit = function(e) {
+            // Eliminar campos con [] para evitar que Netlify los procese como arrays planos
+            document.querySelectorAll('input[name="parada_inicio[]"], input[name="parada_fin[]"], select[name="motivo[]"], input[name="otro_motivo[]"]').forEach(el => {
+                el.remove();
+            });
+
+            // Limpiar localStorage
             localStorage.removeItem('registroEmergentData');
         };
     </script>

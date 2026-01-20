@@ -115,14 +115,8 @@
         <!-- Campo obligatorio para Netlify -->
         <input type="hidden" name="form-name" value="registro-emergent-cold">
         
-        <!-- Campos fantasma SIN [] (para compatibilidad) -->
-        <input type="hidden" name="parada_inicio">
-        <input type="hidden" name="parada_fin">
-        <input type="hidden" name="motivo">
-        <input type="hidden" name="otro_motivo">
-
-        <!-- Campo oculto para JSON -->
-        <input type="hidden" name="paradas_json" id="paradas_json">
+        <!-- Campo oculto para JSON (renombrado) -->
+        <input type="hidden" name="paradas_data" id="paradas_data">
 
         <label for="lugar">Lugar de operación:</label>
         <select name="lugar" id="lugar" required onchange="actualizarCampos(); guardarProgreso();">
@@ -205,8 +199,8 @@
             // Guardar en localStorage
             localStorage.setItem('registroEmergentData', JSON.stringify(data));
 
-            // Actualizar el campo oculto con el JSON
-            document.getElementById('paradas_json').value = JSON.stringify(data.paradas);
+            // Actualizar el campo oculto con el JSON (renombrado)
+            document.getElementById('paradas_data').value = JSON.stringify(data.paradas);
         }
 
         function cargarProgreso() {

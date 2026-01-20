@@ -112,14 +112,14 @@
     <h2 style="text-align:center;">FORMULARIO - EMERGENT COLD</h2>
 
     <form id="formulario-registro" name="registro-emergent-cold" method="POST" data-netlify="true">
+        <!-- Campo obligatorio para Netlify -->
         <input type="hidden" name="form-name" value="registro-emergent-cold">
-
-        <div style="display:none;">
-            <input type="text" name="parada_inicio[]">
-            <input type="text" name="parada_fin[]">
-            <input type="text" name="motivo[]">
-            <input type="text" name="otro_motivo[]">
-        </div>
+        
+        <!-- Campos fantasma: necesarios para que Netlify reconozca los nombres (sin []) -->
+        <input type="hidden" name="parada_inicio">
+        <input type="hidden" name="parada_fin">
+        <input type="hidden" name="motivo">
+        <input type="hidden" name="otro_motivo">
 
         <label for="lugar">Lugar de operación:</label>
         <select name="lugar" id="lugar" required onchange="actualizarCampos(); guardarProgreso();">

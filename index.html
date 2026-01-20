@@ -115,11 +115,19 @@
         <!-- Campo obligatorio para Netlify -->
         <input type="hidden" name="form-name" value="registro-emergent-cold">
         
-        <!-- Campos fantasma: necesarios para que Netlify reconozca los nombres (sin []) -->
+        <!-- Campos fantasma SIN [] → para registro básico en Netlify -->
         <input type="hidden" name="parada_inicio">
         <input type="hidden" name="parada_fin">
         <input type="hidden" name="motivo">
         <input type="hidden" name="otro_motivo">
+
+        <!-- Bloque oculto CON [] → para permitir múltiples valores (¡clave!) -->
+        <div style="display:none;">
+            <input type="text" name="parada_inicio[]">
+            <input type="text" name="parada_fin[]">
+            <input type="text" name="motivo[]">
+            <input type="text" name="otro_motivo[]">
+        </div>
 
         <label for="lugar">Lugar de operación:</label>
         <select name="lugar" id="lugar" required onchange="actualizarCampos(); guardarProgreso();">

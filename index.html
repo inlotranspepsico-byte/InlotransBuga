@@ -103,6 +103,12 @@
             font-size: 1.1em;
             letter-spacing: 2px;
         }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -127,6 +133,14 @@
         <label for="jefe">Jefe Asignado:</label>
         <input type="text" name="jefe" id="jefe" readonly required>
         
+        <label for="coordinador">Coordinador:</label>
+        <select name="coordinador" id="coordinador" required onchange="manejarOtroCoordinador(); guardarProgreso();">
+            <option value="Jeison Aranda">Jeison Aranda</option>
+            <option value="Julian Espitia">Julian Espitia</option>
+            <option value="Otro">Otro</option>
+        </select>
+        <input type="text" name="otro_coordinador" id="otro_coordinador" placeholder="Especifique el coordinador" style="display:none; margin-top:8px;" oninput="guardarProgreso()">
+
         <label for="fecha">Fecha:</label>
         <input type="date" name="fecha" id="fecha" required oninput="guardarProgreso()">
 
@@ -175,15 +189,32 @@
     </form>
 
     <script>
+        // --- NUEVO: Manejo de Coordinador "Otro" ---
+        function manejarOtroCoordinador() {
+            const select = document.getElementById('coordinador');
+            const otroInput = document.getElementById('otro_coordinador');
+            if (select.value === 'Otro') {
+                otroInput.style.display = 'block';
+                otroInput.required = true;
+            } else {
+                otroInput.style.display = 'none';
+                otroInput.required = false;
+                otroInput.value = '';
+            }
+            guardarProgreso();
+        }
+
         // --- LÓGICA DE PERSISTENCIA ---
         function guardarProgreso() {
             const data = {};
             // Campos simples
-            const ids = ['lugar', 'jefe', 'fecha', 'turno', 'total_personas', 'canastas_totales', 'bultos_totales', 'kilos_totales', 'gramos_totales'];
+            const ids = ['lugar', 'jefe', 'fecha', 'turno', 'total_personas', 'canastas_totales', 'bultos_totales', 'kilos_totales', 'gramos_totales', 'coordinador'];
             ids.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) data[id] = el.value;
             });
+            // Otro coordinador
+            data.otro_coordinador = document.getElementById('otro_coordinador').value;
 
             // Paradas: convertir a JSON
             data.paradas = [];
@@ -213,11 +244,19 @@
 
             // Cargar simples
             for (let key in data) {
-                if (key !== 'paradas') {
+                if (key !== 'paradas' && key !== 'otro_coordinador') {
                     const el = document.getElementById(key);
                     if (el) el.value = data[key];
                 }
             }
+            // Coordinador "Otro"
+            if (data.coordinador === 'Otro') {
+                document.getElementById('coordinador').value = 'Otro';
+                document.getElementById('otro_coordinador').style.display = 'block';
+                document.getElementById('otro_coordinador').value = data.otro_coordinador || '';
+                document.getElementById('otro_coordinador').required = true;
+            }
+
             actualizarCampos();
 
             // Cargar paradas
@@ -237,6 +276,67 @@
                 localStorage.removeItem('registroEmergentData');
                 location.reload();
             }
+        }
+
+        // --- VALIDACIÓN DE HORAS ---
+        function validarHorasYsolapamiento(inicio, fin, grupoActual) {
+            const errorInicio = grupoActual.querySelector('.error-inicio');
+            const errorSolapamiento = grupoActual.querySelector('.error-solapamiento');
+
+            // Reset errores
+            if (errorInicio) errorInicio.style.display = 'none';
+            if (errorSolapamiento) errorSolapamiento.style.display = 'none';
+
+            // Validar formato HH:MM
+            const regex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (!regex.test(inicio) || !regex.test(fin)) return true;
+
+            // Convertir a minutos
+            const [h1, m1] = inicio.split(':').map(Number);
+            const [h2, m2] = fin.split(':').map(Number);
+            const total1 = h1 * 60 + m1;
+            const total2 = h2 * 60 + m2;
+
+            // Error: inicio >= fin
+            if (total1 >= total2) {
+                if (!errorInicio) {
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'error-message error-inicio';
+                    errorMsg.textContent = '❌ La hora de inicio debe ser menor que la de fin';
+                    grupoActual.querySelector('.time-row').after(errorMsg);
+                } else {
+                    errorInicio.style.display = 'block';
+                }
+                return false;
+            }
+
+            // Verificar solapamiento con otras paradas
+            const todasParadas = Array.from(document.querySelectorAll('.parada-group')).filter(g => g !== grupoActual);
+            for (const otra of todasParadas) {
+                const otraInicio = otra.querySelector('input[name="parada_inicio[]"]').value;
+                const otraFin = otra.querySelector('input[name="parada_fin[]"]').value;
+                if (!otraInicio || !otraFin) continue;
+
+                const [oh1, om1] = otraInicio.split(':').map(Number);
+                const [oh2, om2] = otraFin.split(':').map(Number);
+                const otro1 = oh1 * 60 + om1;
+                const otro2 = oh2 * 60 + om2;
+
+                // Solapamiento: (inicio < otro2) && (fin > otro1)
+                if (total1 < otro2 && total2 > otro1) {
+                    if (!errorSolapamiento) {
+                        const errorMsg = document.createElement('div');
+                        errorMsg.className = 'error-message error-solapamiento';
+                        errorMsg.textContent = '❌ Esta parada se superpone con otra';
+                        grupoActual.querySelector('.time-row').after(errorMsg);
+                    } else {
+                        errorSolapamiento.style.display = 'block';
+                    }
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         // --- LÓGICA ORIGINAL DEL FORMULARIO ---
@@ -299,6 +399,13 @@
             }
             inputElement.value = value.substring(0, 5);
             convertirHoraMilitar(inputElement, displayElement);
+            // Validar al escribir
+            const grupo = inputElement.closest('.parada-group');
+            const inicio = grupo.querySelector('input[name="parada_inicio[]"]').value;
+            const fin = grupo.querySelector('input[name="parada_fin[]"]').value;
+            if (inicio && fin) {
+                validarHorasYsolapamiento(inicio, fin, grupo);
+            }
         }
 
         function convertirHoraMilitar(inputElement, displayElement) {
@@ -350,6 +457,11 @@
             // Actualizar AM/PM si hay valores cargados
             if(valI) convertirHoraMilitar(nuevoCampo.querySelector('input[name="parada_inicio[]"]'), idI);
             if(valF) convertirHoraMilitar(nuevoCampo.querySelector('input[name="parada_fin[]"]'), idF);
+            
+            // Validar al cargar
+            if (valI && valF) {
+                validarHorasYsolapamiento(valI, valF, nuevoCampo);
+            }
         }
         
         function manejarOtroMotivo(selectElement) {
@@ -371,8 +483,27 @@
             cargarProgreso();
         });
 
-        // Limpiar al enviar
+        // Validación antes de enviar
         document.getElementById('formulario-registro').onsubmit = function(e) {
+            let esValido = true;
+            
+            // Validar todas las paradas
+            document.querySelectorAll('.parada-group').forEach(grupo => {
+                const inicio = grupo.querySelector('input[name="parada_inicio[]"]').value;
+                const fin = grupo.querySelector('input[name="parada_fin[]"]').value;
+                if (inicio && fin) {
+                    if (!validarHorasYsolapamiento(inicio, fin, grupo)) {
+                        esValido = false;
+                    }
+                }
+            });
+
+            if (!esValido) {
+                e.preventDefault();
+                alert("Corrige los errores en las paradas antes de enviar.");
+                return false;
+            }
+
             // Eliminar campos con [] para evitar que Netlify los procese como arrays planos
             document.querySelectorAll('input[name="parada_inicio[]"], input[name="parada_fin[]"], select[name="motivo[]"], input[name="otro_motivo[]"]').forEach(el => {
                 el.remove();

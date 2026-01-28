@@ -103,11 +103,62 @@
             font-size: 1.1em;
             letter-spacing: 2px;
         }
-        .error-message {
-            color: #dc3545;
-            font-size: 0.85em;
-            margin-top: 5px;
+
+        /* Estilo del modal de error (como Netlify) */
+        #error-modal {
             display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 1px solid #e0e0e0;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .modal-icon {
+            color: #dc3545;
+            font-size: 20px;
+            margin-right: 10px;
+        }
+        .modal-title {
+            font-weight: bold;
+            color: #333;
+        }
+        .modal-body {
+            margin-bottom: 20px;
+            line-height: 1.5;
+            color: #555;
+        }
+        .modal-footer {
+            text-align: right;
+        }
+        .btn-aceptar {
+            background-color: #083b72;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-aceptar:hover {
+            background-color: #052a50;
         }
     </style>
 </head>
@@ -121,22 +172,21 @@
         <!-- Campo obligatorio para Netlify -->
         <input type="hidden" name="form-name" value="registro-emergent-cold">
         
-        <!-- Campo oculto para JSON (renombrado) -->
+        <!-- Campo oculto para JSON -->
         <input type="hidden" name="paradas_data" id="paradas_data">
 
         <label for="lugar">Lugar de operación:</label>
         <select name="lugar" id="lugar" required onchange="actualizarCampos(); guardarProgreso();">
             <option value="">Seleccione una opción</option>
             <option value="Buga">Buga</option>
+            <option value="Pepsico">Pepsico</option>
         </select>
         
-        <label for="jefe">Jefe Asignado:</label>
-        <input type="text" name="jefe" id="jefe" readonly required>
+        <!-- Jefe Asignado eliminado -->
         
         <label for="coordinador">Coordinador:</label>
-        <select name="coordinador" id="coordinador" required onchange="manejarOtroCoordinador(); guardarProgreso();">
-            <option value="Jeison Aranda">Jeison Aranda</option>
-            <option value="Julian Espitia">Julian Espitia</option>
+        <select name="coordinador" id="co" required onchange="manejarOtroCoordinador(); guardarProgreso();">
+            <option value="Giovanny Ayala">Giovanny Ayala</option>
             <option value="Otro">Otro</option>
         </select>
         <input type="text" name="otro_coordinador" id="otro_coordinador" placeholder="Especifique el coordinador" style="display:none; margin-top:8px;" oninput="guardarProgreso()">
@@ -164,7 +214,7 @@
         <hr style="margin-top: 25px; border-style: dotted;">
         <h3 style="text-align:center; font-size:1.1em; color:#314b64;">TOTALES DE TURNO</h3>
         
-        <label for="total_personas">Total Personas (Empleados):</label>
+        <label for="as">Total Personas (Empleados):</label>
         <input type="number" name="total_personas" id="total_personas" min="1" placeholder="Ej: 8" required onfocus="clearAndFocus(this)" oninput="guardarProgreso()">
 
         <label for="canastas_totales">Total Canastas:</label>
@@ -188,8 +238,34 @@
         <button type="button" id="btn-borrar-todo" onclick="borrarTodo()">BORRAR TODO EL FORMULARIO</button>
     </form>
 
+    <!-- Modal de error -->
+    <div id="error-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-icon">❌</div>
+                <div class="modal-title">Error de Seguridad</div>
+            </div>
+            <div class="modal-body" id="error-message">
+                La Hora Final no puede ser menor que la Hora Inicio.
+            </div>
+            <div class="modal-footer">
+                <button class="btn-aceptar" onclick="cerrarErrorModal()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // --- NUEVO: Manejo de Coordinador "Otro" ---
+        // --- MODAL DE ERROR ---
+        function mostrarError(mensaje) {
+            document.getElementById('error-message').textContent = mensaje;
+            document.getElementById('error-modal').style.display = 'flex';
+        }
+
+        function cerrarErrorModal() {
+            document.getElementById('error-modal').style.display = 'none';
+        }
+
+        // --- NUEVO: Manejo de Coordinador ---
         function manejarOtroCoordinador() {
             const select = document.getElementById('coordinador');
             const otroInput = document.getElementById('otro_coordinador');
@@ -204,11 +280,55 @@
             guardarProgreso();
         }
 
+        // --- VALIDACIÓN DE HORAS (con limpieza y modal) ---
+        function validarHorasYsolapamiento(inicio, fin, grupoActual) {
+            // Validar formato HH:MM
+            const regex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (!regex.test(inicio) || !regex.test(fin)) return true;
+
+            // Convertir a minutos
+            const [h1, m1] = inicio.split(':').map(Number);
+            const [h2, m2] = fin.split(':').map(Number);
+            const total1 = h1 * 60 + m1;
+            const total2 = h2 * 60 + m2;
+
+            // Error: inicio >= fin
+            if (total1 >= total2) {
+                const finInput = grupoActual.querySelector('input[name="parada_fin[]"]');
+                finInput.value = ''; // Limpiar hora_fin
+                mostrarError("La Hora Final no puede ser menor que la Hora Inicio.");
+                return false;
+            }
+
+            // Verificar solapamiento con otras paradas
+            const todasParadas = Array.from(document.querySelectorAll('.parada-group')).filter(g => g !== grupoActual);
+            for (const otra of todasParadas) {
+                const otraInicio = otra.querySelector('input[name="parada_inicio[]"]').value;
+                const otraFin = otra.querySelector('input[name="parada_fin[]"]').value;
+                if (!otraInicio || !otraFin) continue;
+
+                const [oh1, om1] = otraInicio.split(':').map(Number);
+                const [oh2, om2] = otraFin.split(':').map(Number);
+                const otro1 = oh1 * 60 + om1;
+                const otro2 = oh2 * 60 + om2;
+
+                // Solapamiento: (inicio < otro2) && (fin > otro1)
+                if (total1 < otro2 && total2 > otro1) {
+                    const finInput = grupoActual.querySelector('input[name="parada_fin[]"]');
+                    finInput.value = ''; // Limpiar hora_fin
+                    mostrarError("La Hora Final se superpone con otra parada.");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         // --- LÓGICA DE PERSISTENCIA ---
         function guardarProgreso() {
             const data = {};
             // Campos simples
-            const ids = ['lugar', 'jefe', 'fecha', 'turno', 'total_personas', 'canastas_totales', 'bultos_totales', 'kilos_totales', 'gramos_totales', 'coordinador'];
+            const ids = ['lugar', 'fecha', 'turno', 'total_personas', 'canastas_totales', 'bultos_totales', 'kilos_totales', 'gramos_totales', 'coordinador'];
             ids.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) data[id] = el.value;
@@ -216,7 +336,7 @@
             // Otro coordinador
             data.otro_coordinador = document.getElementById('otro_coordinador').value;
 
-            // Paradas: convertir a JSON
+            // Paradas
             data.paradas = [];
             document.querySelectorAll('.parada-group').forEach(grupo => {
                 data.paradas.push({
@@ -227,10 +347,7 @@
                 });
             });
 
-            // Guardar en localStorage
             localStorage.setItem('registroEmergentData', JSON.stringify(data));
-
-            // Actualizar el campo oculto con el JSON (renombrado)
             document.getElementById('paradas_data').value = JSON.stringify(data.paradas);
         }
 
@@ -278,67 +395,6 @@
             }
         }
 
-        // --- VALIDACIÓN DE HORAS ---
-        function validarHorasYsolapamiento(inicio, fin, grupoActual) {
-            const errorInicio = grupoActual.querySelector('.error-inicio');
-            const errorSolapamiento = grupoActual.querySelector('.error-solapamiento');
-
-            // Reset errores
-            if (errorInicio) errorInicio.style.display = 'none';
-            if (errorSolapamiento) errorSolapamiento.style.display = 'none';
-
-            // Validar formato HH:MM
-            const regex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-            if (!regex.test(inicio) || !regex.test(fin)) return true;
-
-            // Convertir a minutos
-            const [h1, m1] = inicio.split(':').map(Number);
-            const [h2, m2] = fin.split(':').map(Number);
-            const total1 = h1 * 60 + m1;
-            const total2 = h2 * 60 + m2;
-
-            // Error: inicio >= fin
-            if (total1 >= total2) {
-                if (!errorInicio) {
-                    const errorMsg = document.createElement('div');
-                    errorMsg.className = 'error-message error-inicio';
-                    errorMsg.textContent = '❌ La hora de inicio debe ser menor que la de fin';
-                    grupoActual.querySelector('.time-row').after(errorMsg);
-                } else {
-                    errorInicio.style.display = 'block';
-                }
-                return false;
-            }
-
-            // Verificar solapamiento con otras paradas
-            const todasParadas = Array.from(document.querySelectorAll('.parada-group')).filter(g => g !== grupoActual);
-            for (const otra of todasParadas) {
-                const otraInicio = otra.querySelector('input[name="parada_inicio[]"]').value;
-                const otraFin = otra.querySelector('input[name="parada_fin[]"]').value;
-                if (!otraInicio || !otraFin) continue;
-
-                const [oh1, om1] = otraInicio.split(':').map(Number);
-                const [oh2, om2] = otraFin.split(':').map(Number);
-                const otro1 = oh1 * 60 + om1;
-                const otro2 = oh2 * 60 + om2;
-
-                // Solapamiento: (inicio < otro2) && (fin > otro1)
-                if (total1 < otro2 && total2 > otro1) {
-                    if (!errorSolapamiento) {
-                        const errorMsg = document.createElement('div');
-                        errorMsg.className = 'error-message error-solapamiento';
-                        errorMsg.textContent = '❌ Esta parada se superpone con otra';
-                        grupoActual.querySelector('.time-row').after(errorMsg);
-                    } else {
-                        errorSolapamiento.style.display = 'block';
-                    }
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
         // --- LÓGICA ORIGINAL DEL FORMULARIO ---
         function limitarGramos(element) {
             var valor = parseInt(element.value);
@@ -356,23 +412,24 @@
         
         function actualizarCampos() {
             var lugarSeleccionado = document.getElementById("lugar").value;
-            var campoJefe = document.getElementById("jefe");
             var campoTurno = document.getElementById("turno");
-            var jefeAsignado = "";
             var now = new Date();
             var currentHour = now.getHours();
             var turnoAsignadoValue = "";
 
-            switch (lugarSeleccionado) {
-                case "Buga": jefeAsignado = "Giovanny Ayala"; break;
-                default: jefeAsignado = ""; turnoAsignadoValue = "";
+            // Solo Giovanny Ayala como coordinador predeterminado
+            if (lugarSeleccionado === "Buga" || lugarSeleccionado === "Pepsico") {
+                document.getElementById('coordinador').value = "Giovanny Ayala";
+                document.getElementById('otro_coordinador').style.display = 'none';
+                document.getElementById('otro_coordinador').required = false;
+                document.getElementById('otro_coordinador').value = '';
             }
 
-            if (jefeAsignado !== "" && campoTurno.value === "") {
+            if (campoTurno.value === "") {
                 turnoAsignadoValue = determinarTurnoEstandar(currentHour);
                 campoTurno.value = turnoAsignadoValue;
             }
-            campoJefe.value = jefeAsignado;
+            guardarProgreso();
         }
 
         function generarSelectMotivo(valM = '') {
@@ -399,6 +456,7 @@
             }
             inputElement.value = value.substring(0, 5);
             convertirHoraMilitar(inputElement, displayElement);
+
             // Validar al escribir
             const grupo = inputElement.closest('.parada-group');
             const inicio = grupo.querySelector('input[name="parada_inicio[]"]').value;
@@ -500,7 +558,6 @@
 
             if (!esValido) {
                 e.preventDefault();
-                alert("Corrige los errores en las paradas antes de enviar.");
                 return false;
             }
 

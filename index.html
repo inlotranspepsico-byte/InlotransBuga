@@ -179,13 +179,10 @@
         <select name="lugar" id="lugar" required onchange="actualizarCampos(); guardarProgreso();">
             <option value="">Seleccione una opción</option>
             <option value="Buga">Buga</option>
-            <option value="Pepsico">Pepsico</option>
         </select>
         
-        <!-- Jefe Asignado eliminado -->
-        
         <label for="coordinador">Coordinador:</label>
-        <select name="coordinador" id="co" required onchange="manejarOtroCoordinador(); guardarProgreso();">
+        <select name="coordinador" id="coordinador" required onchange="manejarOtroCoordinador(); guardarProgreso();">
             <option value="Giovanny Ayala">Giovanny Ayala</option>
             <option value="Otro">Otro</option>
         </select>
@@ -197,9 +194,9 @@
         <label for="turno">Turno Asignado:</label>
         <select name="turno" id="turno" required onchange="guardarProgreso()">
             <option value="">Seleccione un turno</option>
-            <option value="Manana">Mañana</option>
-            <option value="Tarde">Tarde</option>
-            <option value="Noche">Noche</option>
+            <option value="Manana">Turno 1 (6:00 AM - 2:00 PM)</option>
+            <option value="Tarde">Turno 2 (2:00 PM - 10:00 PM)</option>
+            <option value="Noche">Turno 3 (10:00 PM - 6:00 AM)</option>
         </select>
         
         <hr style="margin-top: 25px; border-style: dotted;">
@@ -214,7 +211,7 @@
         <hr style="margin-top: 25px; border-style: dotted;">
         <h3 style="text-align:center; font-size:1.1em; color:#314b64;">TOTALES DE TURNO</h3>
         
-        <label for="as">Total Personas (Empleados):</label>
+        <label for="total_personas">Total Personas (Empleados):</label>
         <input type="number" name="total_personas" id="total_personas" min="1" placeholder="Ej: 8" required onfocus="clearAndFocus(this)" oninput="guardarProgreso()">
 
         <label for="canastas_totales">Total Canastas:</label>
@@ -404,10 +401,15 @@
             if (element.value === "0" || element.value === "") { element.value = ''; }
         }
         
-        function determinarTurnoEstandar(currentHour) {
-            if (currentHour >= 6 && currentHour < 14) { return "Manana"; } 
-            else if (currentHour >= 14 && currentHour < 22) { return "Tarde"; } 
-            else { return "Noche"; } 
+        // NUEVO: Determinar turno por hora actual
+        function determinarTurnoPorHora(currentHour) {
+            if (currentHour >= 6 && currentHour < 14) {
+                return "Manana"; // Turno 1
+            } else if (currentHour >= 14 && currentHour < 22) {
+                return "Tarde"; // Turno 2
+            } else {
+                return "Noche"; // Turno 3
+            }
         }
         
         function actualizarCampos() {
@@ -415,18 +417,20 @@
             var campoTurno = document.getElementById("turno");
             var now = new Date();
             var currentHour = now.getHours();
-            var turnoAsignadoValue = "";
 
-            // Solo Giovanny Ayala como coordinador predeterminado
-            if (lugarSeleccionado === "Buga" || lugarSeleccionado === "Pepsico") {
-                document.getElementById('coordinador').value = "Giovanny Ayala";
-                document.getElementById('otro_coordinador').style.display = 'none';
-                document.getElementById('otro_coordinador').required = false;
-                document.getElementById('otro_coordinador').value = '';
+            // Solo Buga → coordinador siempre Giovanny Ayala (a menos que elija "Otro")
+            if (lugarSeleccionado === "Buga") {
+                if (document.getElementById('coordinador').value !== 'Otro') {
+                    document.getElementById('coordinador').value = "Giovanny Ayala";
+                    document.getElementById('otro_coordinador').style.display = 'none';
+                    document.getElementById('otro_coordinador').required = false;
+                    document.getElementById('otro_coordinador').value = '';
+                }
             }
 
+            // Asignar turno automáticamente si no está seleccionado
             if (campoTurno.value === "") {
-                turnoAsignadoValue = determinarTurnoEstandar(currentHour);
+                var turnoAsignadoValue = determinarTurnoPorHora(currentHour);
                 campoTurno.value = turnoAsignadoValue;
             }
             guardarProgreso();
